@@ -3,9 +3,9 @@ const hre = require("hardhat");
 async function main() {
   const OmniChainNFT = await hre.ethers.getContractFactory("OmniChainNFT");
   const omniChainNFT = await OmniChainNFT.deploy(
-    "0x93f54D755A063cE7bB9e6Ac47Eccc8e33411d706",
-    100,
-    200
+    "0x93f54D755A063cE7bB9e6Ac47Eccc8e33411d706", // layerzero chain specific endpoint inserted here
+    0,
+    5
   );
 
   await omniChainNFT.deployed();

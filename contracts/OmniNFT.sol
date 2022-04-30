@@ -1,26 +1,24 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/utils/Base64.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 
 import "../interfaces/ILayerZeroEndpoint.sol";
 import "../interfaces/ILayerZeroReceiver.sol";
 
-contract OmniChainNFT is Ownable, ERC721, ILayerZeroReceiver {
-
+contract OmniChainNFT is ERC721Enumerable, ILayerZeroReceiver, Ownable {
     using Strings for uint256;
 
-    mapping (uint256 => string) private _tokenURIs;
+    mapping(uint256 => string) private _tokenURIs;
 
     string private _baseURIextended;
 
     uint256 counter = 0;
     uint256 nextId = 0;
-    uint256 MAX = 100;
+    uint256 MAX = 5;
     uint256 gas = 350000;
 
     ILayerZeroEndpoint public endpoint;
@@ -29,6 +27,7 @@ contract OmniChainNFT is Ownable, ERC721, ILayerZeroReceiver {
         uint16 _srcChainId,
         address _from,
         uint256 _tokenId,
+        uint256 _massValue,
         uint256 counter
     );
 
@@ -44,12 +43,18 @@ contract OmniChainNFT is Ownable, ERC721, ILayerZeroReceiver {
         MAX = _max;
     }
 
-    function setBaseURI(string memory baseURI_) external onlyOwner() {
+    function setBaseURI(string memory baseURI_) external onlyOwner {
         _baseURIextended = baseURI_;
     }
 
-    function _setTokenURI(uint256 tokenId, string memory _tokenURI) internal virtual {
-        require(_exists(tokenId), "ERC721Metadata: URI set of nonexistent token");
+    function _setTokenURI(uint256 tokenId, string memory _tokenURI)
+        internal
+        virtual
+    {
+        require(
+            _exists(tokenId),
+            "ERC721Metadata: URI set of nonexistent token"
+        );
         _tokenURIs[tokenId] = _tokenURI;
     }
 
@@ -57,8 +62,17 @@ contract OmniChainNFT is Ownable, ERC721, ILayerZeroReceiver {
         return _baseURIextended;
     }
 
-    function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
-        require(_exists(tokenId), "ERC721Metadata: URI query for nonexistent token");
+    function tokenURI(uint256 tokenId)
+        public
+        view
+        virtual
+        override
+        returns (string memory)
+    {
+        require(
+            _exists(tokenId),
+            "ERC721Metadata: URI query for nonexistent token"
+        );
 
         string memory _tokenURI = _tokenURIs[tokenId];
         string memory base = _baseURI();
@@ -74,39 +88,46 @@ contract OmniChainNFT is Ownable, ERC721, ILayerZeroReceiver {
         // If there is a baseURI but no tokenURI, concatenate the tokenID to the baseURI.
         return string(abi.encodePacked(base, tokenId.toString()));
     }
-    ///////////////////////////////////////////////////////////////////////////////
 
-    function svgToImageURI(string memory svg) public pure returns (string memory) {
-        string memory baseURL = "data:image/svg+xml;base64,";
-        string memory svgBase64Encoded = Base64.encode(bytes(svg));
-        return string(abi.encodePacked(baseURL, svgBase64Encoded));
-    }
+    // ///////////////////////////////////////////////////////////////////////////////
 
-    function formatTokenURI(string memory imageURI) public pure returns (string memory) {
-        return
-            string(
-                abi.encodePacked(
-                    "data:application/json;base64,",
-                    Base64.encode(
-                        bytes(
-                            abi.encodePacked(
-                                '{"name": "OmniNFT", "description": "An omnichain NFT project", "image":"',
-                                imageURI,
-                                '"}'
-                            )
-                        )
-                    )
-                )
-            );
-    }
+    // function svgToImageURI(string memory svg)
+    //     public
+    //     pure
+    //     returns (string memory)
+    // {
+    //     string memory baseURL = "data:image/svg+xml;base64,";
+    //     string memory svgBase64Encoded = Base64.encode(bytes(svg));
+    //     return string(abi.encodePacked(baseURL, svgBase64Encoded));
+    // }
+
+    // function formatTokenURI(string memory imageURI)
+    //     public
+    //     pure
+    //     returns (string memory)
+    // {
+    //     return
+    //         string(
+    //             abi.encodePacked(
+    //                 "data:application/json;base64,",
+    //                 Base64.encode(
+    //                     bytes(
+    //                         abi.encodePacked(
+    //                             '{"name": "OmniNFT", "description": "An omnichain NFT project", "image":"',
+    //                             imageURI,
+    //                             '"}'
+    //                         )
+    //                     )
+    //                 )
+    //             )
+    //         );
+    // }
 
     function mint() external payable {
         require(nextId + 1 <= MAX, "Exceeds supply");
         nextId += 1;
 
-        string memory svg = "<svg xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='xMinYMin meet' viewBox='0 0 350 350'><style>.base { fill: white; font-family: serif; font-size: 24px; }</style><rect width='100%' height='100%' fill='black' /><text x='50%' y='50%' class='base' dominant-baseline='middle' text-anchor='middle'>1</text></svg>";
-        string memory imageURI_ = svgToImageURI(svg);
-        string memory tokenURI_ = formatTokenURI(imageURI_);
+        string memory tokenURI_ = string(abi.encodePacked("https://cloudflare-ipfs.com/ipfs/QmTkUsBofqsNqynrGJCbZK4hmkWSrby4TXZiXDvkpCeEFd/nft_", nextId.toString(), ".json"));
 
         _safeMint(msg.sender, nextId);
         _setTokenURI(nextId, tokenURI_);
@@ -118,13 +139,14 @@ contract OmniChainNFT is Ownable, ERC721, ILayerZeroReceiver {
     function crossChain(
         uint16 _dstChainId,
         bytes calldata _destination,
-        uint256 tokenId
+        uint256 tokenId,
+        uint256 massValue
     ) public payable {
         require(msg.sender == ownerOf(tokenId), "Not the owner");
         // burn NFT
         _burn(tokenId);
         counter -= 1;
-        bytes memory payload = abi.encode(msg.sender, tokenId);
+        bytes memory payload = abi.encode(msg.sender, tokenId, massValue);
         // encode adapterParams to specify more gas for the destination
         uint16 version = 1;
         bytes memory adapterParams = abi.encodePacked(version, gas);
@@ -148,6 +170,7 @@ contract OmniChainNFT is Ownable, ERC721, ILayerZeroReceiver {
             adapterParams
         );
     }
+
     function lzReceive(
         uint16 _srcChainId,
         bytes memory _from,
@@ -159,15 +182,20 @@ contract OmniChainNFT is Ownable, ERC721, ILayerZeroReceiver {
         assembly {
             from := mload(add(_from, 20))
         }
-        (address toAddress, uint256 tokenId) = abi.decode(
+        (address toAddress, uint256 tokenId, uint256 massValue) = abi.decode(
             _payload,
-            (address, uint256)
+            (address, uint256, uint256)
         );
         // mint the tokens
-        _safeMint(toAddress, tokenId);
+        string memory tokenURI_ = string(abi.encodePacked("https://cloudflare-ipfs.com/ipfs/QmTkUsBofqsNqynrGJCbZK4hmkWSrby4TXZiXDvkpCeEFd/nft_", tokenId, ".json"));
+
+        _safeMint(msg.sender, tokenId);
+        _setTokenURI(tokenId, tokenURI_);
+
         counter += 1;
-        emit ReceiveNFT(_srcChainId, toAddress, tokenId, counter);
+        emit ReceiveNFT(_srcChainId, toAddress, tokenId, massValue, counter);
     }
+
     // Endpoint.sol estimateFees() returns the fees for the message
     function estimateFees(
         uint16 _dstChainId,
@@ -184,5 +212,35 @@ contract OmniChainNFT is Ownable, ERC721, ILayerZeroReceiver {
                 _payInZRO,
                 _adapterParams
             );
+    }
+
+    function tokensOfOwner(address _owner) external view returns(uint256[] memory ownerTokens) {
+		  uint256 tokenCount = balanceOf(_owner);
+
+      if (tokenCount == 0) {
+        // Return an empty array
+        return new uint256[](0);
+      } else {
+        uint256[] memory result = new uint256[](tokenCount);
+        uint256 resultIndex = 0;
+
+        // uint256 tokenId;
+
+        // for (tokenId = 1; tokenId <= MAX; tokenId++) {
+        //   if (ownerOf(tokenId) == _owner) {
+        //     result[resultIndex] = tokenId;
+        //     resultIndex++;
+        //   }
+        // }
+
+        uint256 ownerArrayIndex = 0;
+
+        for (ownerArrayIndex; ownerArrayIndex < tokenCount; ownerArrayIndex++) {
+          result[resultIndex] = tokenOfOwnerByIndex(_owner, ownerArrayIndex); //ERC721 Enumerable function
+          resultIndex++;
+        }
+
+        return result;
+      }
     }
 }

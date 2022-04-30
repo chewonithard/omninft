@@ -4,12 +4,13 @@ const { ethers } = require("ethers");
 async function main() {
   const OmniChainNFT = await hre.ethers.getContractFactory("OmniChainNFT");
   const omniChainNFT = await OmniChainNFT.attach(
-    "0x63519878635D08259535AbF55352b2C7BBb528F5"
+    "0xE1Ee12994d455da28470946f89A4f8089BF4a976" //fuji deployed add
   );
   await omniChainNFT.crossChain(
     10009,
-    "0xCA439a1eA4eaE743A31ae34487C2ec516feb3a45",
-    ethers.BigNumber.from("1"),
+    "0xE5d54cA63c5EF79ad3313E77E9A9da0b66F32ed0", //mumbai
+    ethers.BigNumber.from("102"),
+    ethers.BigNumber.from("35"),
     { value: ethers.utils.parseEther("5") }
   );
 }
